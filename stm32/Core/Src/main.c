@@ -103,7 +103,7 @@ int main(void)
   PseudoOS_Thread_Create(&idle_th, idle_task, idle_stack, sizeof(idle_stack));
   PseudoOS_Thread_Create(&red_th, pseudo_task_red_led, red_stack, sizeof(red_stack));
   PseudoOS_Thread_Create(&blue_th, pseudo_task_blue_led, blue_stack, sizeof(blue_stack));
-
+  SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
   PseudoOS_Start();
   /* USER CODE END 2 */
 
