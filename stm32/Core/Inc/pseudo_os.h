@@ -20,6 +20,7 @@ typedef struct
 {
 	uint32_t *sp;
 	uint32_t timeout;
+	uint8_t priority;
 }PseudoOS_Thread;
 
 typedef void (*PseudoOS_ThreadHandler_t)(void);
@@ -28,7 +29,8 @@ void PseudoOS_Thread_Create(
 	PseudoOS_Thread *thread,
 	PseudoOS_ThreadHandler_t OS_ThreadHandler,
 	void *stack_mem,
-	uint32_t stack_size
+	uint32_t stack_size,
+	uint8_t priority
 	);
 
 void PseudoOS_SwitchContext(void);

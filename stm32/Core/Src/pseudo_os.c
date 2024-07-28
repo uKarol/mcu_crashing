@@ -11,6 +11,7 @@
 
 #define MAX_TH_NUM  32+1
 #define USED_TH_NUM  2
+#define HIGHEST_PRIORITY 32
 
 volatile PseudoOS_Status_t Os_Status = OS_INACTIVE;
 
@@ -18,28 +19,35 @@ PseudoOS_Thread *volatile current_thread = NULL; /* pointer is volatile - NOT no
 PseudoOS_Thread *volatile next_thread = NULL;
 
 PseudoOS_Thread *th_array[MAX_TH_NUM];
-volatile uint32_t created_th_num = 0;
-volatile uint32_t current_th_idx = 0;
-volatile uint32_t os_th_ready_to_run = 0;
 
-volatile uint8_t exceed_test;
+volatile uint32_t os_th_ready_to_run = 0;
+volatile uint32_t os_th_delayed = 0;
+
+static inline uint32_t PseudoOS_GetHighestPriority(uint32_t arg);
+
+static inline uint32_t PseudoOS_GetHighestPriority(uint32_t arg)
+{
+	return HIGHEST_PRIORITY - __CLZ(arg) - 1; //__CLZ(os_th_ready_to_run);
+}
+
+
 void PseudoOS_Start(void)
 {
 	Os_Status = OS_ACTIVE;
 	__disable_irq();
 	PseudoOS_SwitchContext();
 	__enable_irq();
-	exceed_test++;
 
 }
 
 void PseudoOS_Delay(uint32_t timeout_milisecs)
 {
 	/* idle thread must not be blocked */
-	if(current_th_idx > 0)
+	if(current_thread != NULL)
 	{
-		th_array[current_th_idx]->timeout = timeout_milisecs;
-		os_th_ready_to_run &= ~(1<<(current_th_idx-1));
+		current_thread->timeout = timeout_milisecs;
+		os_th_ready_to_run &= ~(1<<(current_thread->priority)); // blocked thread - not ready to run
+		os_th_delayed |= (1<<(current_thread->priority)); 	  // blocked thread - set delayed
 		__disable_irq();
 		PseudoOS_SwitchContext();
 		__enable_irq();
@@ -48,40 +56,33 @@ void PseudoOS_Delay(uint32_t timeout_milisecs)
 
 void PseudoOS_tick(void)
 {
-	for(uint8_t ctr = 1; ctr < created_th_num; ctr++)
-	{
-		if(th_array[ctr]->timeout>0)
-		{
-			if(--(th_array[ctr]->timeout) == 0)
-			{
-				os_th_ready_to_run |= (1<<(ctr-1));
+	uint32_t temp_delay_mask = os_th_delayed;
+	uint32_t temp_bit = PseudoOS_GetHighestPriority(os_th_delayed);
 
-			}
+	while(temp_delay_mask != 0)
+	{
+		if(--(th_array[temp_bit]->timeout) == 0)
+		{
+			os_th_ready_to_run |= (1<<(temp_bit)); // blocked thread - not ready to run
+			os_th_delayed &= ~(1<<(temp_bit)); 	  // blocked thread - set delayed
 		}
+		temp_delay_mask &= ~(1<<(temp_bit));
+		temp_bit = PseudoOS_GetHighestPriority(temp_delay_mask);
 	}
 }
 
-
+volatile uint8_t ready_to_run;
 void PseudoOS_SwitchContext(void)
 {
 	/* if all threads are blocked call IDLE thread */
 	if(os_th_ready_to_run != 0)
 	{
-		/* incerment idx until you find first ready to run th */
-		do
-		{
-			if(++current_th_idx == created_th_num)
-			{
-				current_th_idx = 1;
-			}
-
-		}while((os_th_ready_to_run & (1<<(current_th_idx-1))) == 0);
-		next_thread = th_array[current_th_idx];
+		ready_to_run = PseudoOS_GetHighestPriority(os_th_ready_to_run);
+		next_thread = th_array[PseudoOS_GetHighestPriority(os_th_ready_to_run)];
 	}
 	else
 	{
 		next_thread = th_array[0];
-		current_th_idx = 0;
 	}
 	if(current_thread != next_thread)
 	{
@@ -94,7 +95,8 @@ void PseudoOS_Thread_Create(
 	PseudoOS_Thread *thread,
 	PseudoOS_ThreadHandler_t OS_ThreadHandler,
 	void *stack_mem,
-	uint32_t stack_size
+	uint32_t stack_size,
+	uint8_t priority
 	)
 {
 	/* properly align stack pointer */
@@ -121,19 +123,17 @@ void PseudoOS_Thread_Create(
 	*(--stack_pointer) = 0x14; /* R4 */
 
 	thread->sp = stack_pointer;
+	thread->priority = priority;
 
 	/* fill the bottom of stack with this trash - to ensure that it is not overflowed */
 	for(stack_pointer = stack_pointer-1 ; stack_pointer >= stck_limit; stack_pointer--)
 	{
 		*stack_pointer = 0xBADC0FEE;
 	}
-	if(created_th_num < MAX_TH_NUM)
+	if(priority < HIGHEST_PRIORITY)
 	{
-		if(created_th_num > 0)
-		{
-			os_th_ready_to_run |= (1<<(created_th_num-1));
-		}
-		th_array[created_th_num++] = thread;
+		th_array[priority] = thread;
+		os_th_ready_to_run |= 1<<priority;
 	}
 
 }

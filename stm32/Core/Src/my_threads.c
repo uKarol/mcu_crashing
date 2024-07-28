@@ -32,9 +32,9 @@ void pseudo_task_red_led(void)
 	while(1)
 	{
 		HwAbstraction_RedLedOn();
-		PseudoOS_Delay(200);
+		PseudoOS_Delay(500);
 		HwAbstraction_RedLedOff();
-		PseudoOS_Delay(200);
+		PseudoOS_Delay(500);
 	}
 }
 
