@@ -23,7 +23,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "my_threads.h"
+#include "hw_abstraction.h"
+#include "project_config.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -96,7 +98,13 @@ int main(void)
   MX_GPIO_Init();
   MX_LPUART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  HwAbstraction_LedSetup();
 
+  PseudoOS_Thread_Create(&idle_th, idle_task, idle_stack, sizeof(idle_stack));
+  PseudoOS_Thread_Create(&red_th, pseudo_task_red_led, red_stack, sizeof(red_stack));
+  PseudoOS_Thread_Create(&blue_th, pseudo_task_blue_led, blue_stack, sizeof(blue_stack));
+
+  PseudoOS_Start();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -106,7 +114,7 @@ int main(void)
     /* USER CODE END WHILE */
 
 	  /* simple led blinking */
-	  LD2_GPIO_Port->ODR ^= LD2_Pin;
+	  //LD2_GPIO_Port->ODR ^= LD2_Pin;
 	  LL_mDelay(200);
     /* USER CODE BEGIN 3 */
   }
