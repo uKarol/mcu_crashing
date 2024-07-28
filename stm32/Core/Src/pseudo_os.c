@@ -156,21 +156,16 @@ void PseudoOS_PendSV_Handler(void)
 		"LDR R1, [R1, #0]				@ load value of current thread from address in R1 \n\t"
 		"CBZ R1, first_iteration		@ check if R1 (current thread is not null ptr - in this case branch to label first iteration\n\t"
 		"PUSH {R4-R11}					@ push registers R4-R11 to stack (R0-R3 and R12, PC LR SP are already protected by ISR \n\t"
-		"LDR R1, =current_thread		@ load address of current thread to R1\n\t"
-		"LDR R1, [R1, #0]				@ load address of current thread to R1\n\t"
 		"STR SP, [R1, #0] 				@ store value of current thread structure in R1 \n\t"
 
 		"first_iteration:				@ execute this code when current thread equals NULL \n\t"
 		"LDR R1, =next_thread 			@ load address of next thread to R1 \n\t"
 		"LDR R1, [R1, #0]				@ load value of next thread from address in R1 \n\t"
 		"LDR SP, [R1, #0] 				@ load address of next thread to stack pointer - not stack pointer points to a thread stack \n\t"
-		"LDR R1, =next_thread \n\t"
-		"LDR R1, [R1, #0] \n\t"
 		"LDR R2, =current_thread 		 \n\t"
 		"STR R1, [R2, #0]				@ now current thread = next thread \n\t"
 		"POP {R4-R11} 					@ restore registers from stack \n\t"
 		"CPSIE I\n\t"
-		"BX LR"
 	 );
 
 }
